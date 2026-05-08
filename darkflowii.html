@@ -1,0 +1,1505 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Darkflowii — cursor-reactive ASCII particle field with secret words. Standalone, zero dependencies. Customize and export your own generative typography effect.">
+    <title>Darkflowii Editor</title>
+    <style>
+        /* ─── RESET ─────────────────────────────────────────────────── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --accent:    #ae0cb0;
+            --accent-lo: rgba(174,12,176,0.12);
+            --accent-md: rgba(174,12,176,0.25);
+            --accent2:   #e040fb;   /* violeta más claro para valores */
+            --panel-bg:  rgba(8, 4, 10, 0.93);
+            --border:    rgba(174,12,176,0.22);
+            --border-lo: rgba(255,255,255,0.07);
+            --text:      #e0d0e8;
+            --text-dim:  #886898;
+            --track-bg:  rgba(255,255,255,0.07);
+        }
+
+        body {
+            background: #000;
+            color: var(--text);
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* ─── CANVAS ─────────────────────────────────────────────────── */
+        canvas {
+            display: block;
+            position: fixed;
+            top: 0; left: 0;
+            z-index: 1;
+        }
+
+        /* ─── PANEL ──────────────────────────────────────────────────── */
+        #ui-panel {
+            position: fixed;
+            right: 16px;
+            top: 16px;
+            width: 310px;
+            max-height: calc(100vh - 32px);
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            z-index: 100;
+            overflow-y: auto;
+            overflow-x: hidden;
+            box-shadow: 0 0 40px rgba(174,12,176,0.15), 0 16px 48px rgba(0,0,0,0.8);
+        }
+
+        #ui-panel::-webkit-scrollbar { width: 3px; }
+        #ui-panel::-webkit-scrollbar-track { background: transparent; }
+        #ui-panel::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+
+        /* ─── HEADER ─────────────────────────────────────────────────── */
+        #panel-header {
+            position: sticky;
+            top: 0;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            padding: 13px 14px 10px;
+            border-bottom: 1px solid var(--border);
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        #panel-header h1 {
+            font-size: 12px;
+            letter-spacing: 3.5px;
+            text-transform: uppercase;
+            color: var(--accent2);
+            text-shadow: 0 0 12px rgba(174,12,176,0.6);
+        }
+
+        .header-actions { display: flex; gap: 5px; align-items: center; }
+
+        .hdr-btn {
+            background: none;
+            border: 1px solid var(--border-lo);
+            color: var(--text-dim);
+            padding: 2px 7px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-decoration: none;
+            display: flex; align-items: center;
+            transition: all 0.2s;
+        }
+        .hdr-btn:hover { border-color: var(--accent); color: var(--accent2); }
+
+        #toggle-panel {
+            background: none;
+            border: 1px solid var(--border-lo);
+            color: var(--text-dim);
+            width: 22px; height: 22px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+        }
+        #toggle-panel:hover { border-color: var(--accent); color: var(--accent2); }
+
+        /* ─── SECCIONES ──────────────────────────────────────────────── */
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 7px 14px;
+            cursor: pointer;
+            font-size: 9.5px;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            color: var(--accent2);
+            background: var(--accent-lo);
+            border-top: 1px solid var(--border);
+            transition: background 0.2s;
+        }
+        .section-header:hover { background: var(--accent-md); }
+        .section-header .arrow { transition: transform 0.2s; font-size: 9px; }
+        .section-header.collapsed .arrow { transform: rotate(-90deg); }
+
+        .section-body { padding: 8px 14px 4px; }
+        .section-body.collapsed { display: none; }
+
+        /* ─── CONTROLES ──────────────────────────────────────────────── */
+        .ctrl { margin-bottom: 11px; }
+
+        .ctrl-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 4px;
+        }
+
+        .ctrl-label { font-size: 10.5px; color: var(--text-dim); letter-spacing: 0.4px; }
+        .ctrl-val   { font-size: 10.5px; color: var(--accent2); min-width: 40px; text-align: right; }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%; height: 3px;
+            background: var(--track-bg);
+            border-radius: 2px;
+            outline: none; cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            box-shadow: 0 0 6px rgba(174,12,176,0.7);
+            transition: transform 0.15s;
+        }
+        input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1.3); }
+
+        /* ─── PRESET BUTTONS ─────────────────────────────────────────── */
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+            margin-bottom: 6px;
+        }
+
+        .preset-btn {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border-lo);
+            color: var(--text-dim);
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            padding: 5px 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .preset-btn:hover, .preset-btn.active {
+            border-color: var(--accent);
+            color: var(--accent2);
+            background: var(--accent-lo);
+            box-shadow: 0 0 8px rgba(174,12,176,0.2);
+        }
+
+        /* ─── TEXTAREA CUSTOM ────────────────────────────────────────── */
+        .custom-input {
+            width: 100%;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border-lo);
+            color: var(--text);
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            padding: 6px 8px;
+            border-radius: 4px;
+            resize: vertical;
+            min-height: 36px;
+            outline: none;
+            transition: border-color 0.2s;
+            margin-top: 4px;
+        }
+        .custom-input:focus { border-color: var(--accent); }
+
+        /* ─── LISTA DE PALABRAS ──────────────────────────────────────── */
+        /* Textarea más alto para las palabras secretas */
+        #words-textarea { min-height: 72px; }
+
+        /* ─── COLOR PICKERS ──────────────────────────────────────────── */
+        .color-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .color-swatch-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            flex: 1;
+        }
+        .color-swatch-wrap span {
+            font-size: 9px;
+            color: var(--text-dim);
+            letter-spacing: 0.5px;
+        }
+        input[type="color"] {
+            width: 100%;
+            height: 28px;
+            border: 1px solid var(--border-lo);
+            border-radius: 4px;
+            background: none;
+            cursor: pointer;
+            padding: 1px 2px;
+            transition: border-color 0.2s;
+        }
+        input[type="color"]:hover { border-color: var(--accent); }
+
+        /* ─── PALETAS ────────────────────────────────────────────────── */
+        .palette-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 8px;
+        }
+        .swatch {
+            width: 24px; height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.15s, border-color 0.15s;
+        }
+        .swatch:hover { transform: scale(1.2); }
+        .swatch.active { border-color: #fff; transform: scale(1.15); }
+
+        /* ─── TOGGLE ─────────────────────────────────────────────────── */
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .toggle-label { font-size: 10.5px; color: var(--text-dim); }
+
+        .toggle { position: relative; width: 34px; height: 18px; }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle-track {
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0.08);
+            border-radius: 9px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .toggle-track::after {
+            content: '';
+            position: absolute;
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background: #555;
+            top: 3px; left: 3px;
+            transition: all 0.2s;
+        }
+        .toggle input:checked + .toggle-track { background: rgba(174,12,176,0.3); }
+        .toggle input:checked + .toggle-track::after {
+            background: var(--accent2);
+            transform: translateX(16px);
+            box-shadow: 0 0 6px rgba(174,12,176,0.8);
+        }
+
+        /* ─── BOTONES DE ACCIÓN ──────────────────────────────────────── */
+        .action-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            padding: 8px 14px 12px;
+        }
+
+        .action-btn {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border-lo);
+            color: var(--text);
+            font-family: 'Courier New', monospace;
+            font-size: 9.5px;
+            letter-spacing: 1px;
+            padding: 8px 6px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .action-btn:hover { border-color: var(--accent); color: var(--accent2); background: var(--accent-lo); }
+        .action-btn.accent {
+            border-color: var(--accent);
+            color: var(--accent2);
+            grid-column: span 2;
+            font-size: 10.5px;
+            text-shadow: 0 0 8px rgba(174,12,176,0.5);
+        }
+        .action-btn.accent:hover {
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 0 16px rgba(174,12,176,0.5);
+        }
+
+        /* ─── HINT ───────────────────────────────────────────────────── */
+        #hint {
+            position: fixed;
+            bottom: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            letter-spacing: 2.5px;
+            color: rgba(174,12,176,0.3);
+            z-index: 5;
+            pointer-events: none;
+            transition: opacity 1s;
+        }
+
+        /* ─── RESPONSIVE MÓVIL ──────────────────────────────────────── */
+        @media (max-width: 600px) {
+            #ui-panel {
+                right: 0; left: 0; top: 0;
+                width: 100%;
+                max-height: 60vh;
+                border-radius: 0 0 10px 10px;
+            }
+            .action-grid {
+                grid-template-columns: 1fr 1fr 1fr;
+            }
+            .action-btn.accent {
+                grid-column: span 3;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div id="ui-panel">
+
+    <div id="panel-header">
+        <h1>Darkflowii</h1>
+        <div class="header-actions">
+            <a href="https://github.com/aisurf3r/Flowii" target="_blank" class="hdr-btn">GitHub</a>
+            <button id="toggle-panel" title="Colapsar">−</button>
+        </div>
+    </div>
+
+    <div id="panel-content">
+
+        <!-- ════════ TIPOGRAFÍA ════════ -->
+        <div class="section-header" data-target="sec-typo">
+            <span>Tipografía</span><span class="arrow">▾</span>
+        </div>
+        <div class="section-body" id="sec-typo">
+
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Tamaño fuente</span>
+                    <span class="ctrl-val" id="v-fontSize">14</span>
+                </div>
+                <input type="range" id="s-fontSize" min="6" max="48" step="0.5" value="14">
+            </div>
+
+            <!-- Charset activo: chars que aparecen al activarse la celda -->
+            <div class="ctrl">
+                <span class="ctrl-label">Charset activo</span>
+                <div class="preset-grid" id="charset-active-presets">
+                    <button class="preset-btn active" data-set="ascii"     data-target="active">ASCII .-:+#</button>
+                    <button class="preset-btn"         data-set="numeric"  data-target="active">0-9 Numérico</button>
+                    <button class="preset-btn"         data-set="katakana" data-target="active">ｶﾀｶﾅ Matrix</button>
+                    <button class="preset-btn"         data-set="braille"  data-target="active">⠿ Braille</button>
+                    <button class="preset-btn"         data-set="greek"    data-target="active">ΑΒΓ Griego</button>
+                    <button class="preset-btn"         data-set="block"    data-target="active">█▓▒ Bloques</button>
+                    <button class="preset-btn"         data-set="math"     data-target="active">∑∫∂ Matemát.</button>
+                    <button class="preset-btn"         data-set="custom_a" data-target="active">✎ Custom</button>
+                </div>
+                <textarea class="custom-input" id="custom-active" placeholder="Tus caracteres aquí...">.-:=+*#%@xX0123456789</textarea>
+            </div>
+
+            <!-- Char en reposo -->
+            <div class="ctrl">
+                <span class="ctrl-label">Carácter en reposo</span>
+                <div class="preset-grid" id="charset-rest-presets">
+                    <button class="preset-btn active" data-set="dot"      data-target="rest">· Punto</button>
+                    <button class="preset-btn"        data-set="asterisk" data-target="rest">* Asterisco</button>
+                    <button class="preset-btn"        data-set="dash"     data-target="rest">— Guión</button>
+                    <button class="preset-btn"        data-set="custom_r" data-target="rest">✎ Custom</button>
+                </div>
+                <textarea class="custom-input" id="custom-rest" placeholder="Carácter en reposo...">.</textarea>
+            </div>
+
+            <!-- Mostrar u ocultar caracteres en reposo cuando no hay actividad -->
+            <div class="toggle-row">
+                <span class="toggle-label">Mostrar reposo</span>
+                <label class="toggle">
+                    <input type="checkbox" id="t-showRest" checked>
+                    <span class="toggle-track"></span>
+                </label>
+            </div>
+
+        </div><!-- /sec-typo -->
+
+        <!-- ════════ PALABRAS SECRETAS ════════ -->
+        <div class="section-header" data-target="sec-words">
+            <span>Palabras Secretas</span><span class="arrow">▾</span>
+        </div>
+        <div class="section-body" id="sec-words">
+
+            <!-- Activar/desactivar el sistema de palabras -->
+            <div class="toggle-row">
+                <span class="toggle-label">Activar palabras secretas</span>
+                <label class="toggle">
+                    <input type="checkbox" id="t-wordsEnabled" checked>
+                    <span class="toggle-track"></span>
+                </label>
+            </div>
+
+            <!-- Lista de palabras/frases, una por línea -->
+            <div class="ctrl">
+                <span class="ctrl-label" style="display:block;margin-bottom:5px">Lista (una por línea)</span>
+                <textarea class="custom-input" id="words-textarea" placeholder="VOID&#10;ENCRYPTED&#10;GHOST&#10;SHADOW&#10;CIPHER&#10;NULL">VOID
+ENCRYPTED
+GHOST
+SHADOW
+CIPHER
+NULL</textarea>
+            </div>
+
+            <!-- Probabilidad de que aparezca una palabra en cada ciclo -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Probabilidad aparición</span>
+                    <span class="ctrl-val" id="v-wordProb">0.35</span>
+                </div>
+                <input type="range" id="s-wordProb" min="0" max="1" step="0.01" value="0.35">
+            </div>
+
+            <!-- Intervalo entre intentos de aparición (ms) -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Intervalo entre apariciones (ms)</span>
+                    <span class="ctrl-val" id="v-wordInterval">2400</span>
+                </div>
+                <input type="range" id="s-wordInterval" min="300" max="10000" step="100" value="2400">
+            </div>
+
+            <!-- Tiempo que la palabra permanece visible (ms) -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Duración visibilidad (ms)</span>
+                    <span class="ctrl-val" id="v-wordLife">5000</span>
+                </div>
+                <input type="range" id="s-wordLife" min="500" max="20000" step="100" value="5000">
+            </div>
+
+            <!-- Morph inicial que se da a las celdas de palabra al crearlas -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Morph inicial de palabra</span>
+                    <span class="ctrl-val" id="v-wordMorphInit">1.0</span>
+                </div>
+                <input type="range" id="s-wordMorphInit" min="0.1" max="1" step="0.05" value="1.0">
+            </div>
+
+            <!-- Opacidad máxima de las palabras cuando se dibujan -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Opacidad palabras</span>
+                    <span class="ctrl-val" id="v-wordAlpha">0.93</span>
+                </div>
+                <input type="range" id="s-wordAlpha" min="0.1" max="1" step="0.01" value="0.93">
+            </div>
+
+            <!-- Morph mínimo para que la celda-palabra siga usando el targetChar -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Umbral morph palabra</span>
+                    <span class="ctrl-val" id="v-wordMorphMin">0.5</span>
+                </div>
+                <input type="range" id="s-wordMorphMin" min="0.01" max="1" step="0.01" value="0.5">
+            </div>
+
+            <!-- Color de las palabras secretas -->
+            <div class="ctrl">
+                <span class="ctrl-label" style="display:block;margin-bottom:6px">Color de palabras</span>
+                <div class="color-row">
+                    <div class="color-swatch-wrap">
+                        <input type="color" id="c-wordColor" value="#ff2d55">
+                        <span>Color</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Presets de color para las palabras -->
+            <div class="ctrl">
+                <span class="ctrl-label" style="display:block;margin-bottom:6px">Presets color palabras</span>
+                <div class="palette-row" id="word-palette"></div>
+            </div>
+
+        </div><!-- /sec-words -->
+
+        <!-- ════════ COLOR ════════ -->
+        <div class="section-header" data-target="sec-color">
+            <span>Color</span><span class="arrow">▾</span>
+        </div>
+        <div class="section-body" id="sec-color">
+
+            <!-- Modo de color: sólido fijo o HSL rotatorio -->
+            <div class="toggle-row">
+                <span class="toggle-label">Color fijo (desactiva rotación)</span>
+                <label class="toggle">
+                    <input type="checkbox" id="t-fixedColor">
+                    <span class="toggle-track"></span>
+                </label>
+            </div>
+
+            <!-- Color picker y presets para el campo -->
+            <div class="ctrl">
+                <span class="ctrl-label" style="display:block;margin-bottom:6px">Color campo</span>
+                <div class="color-row">
+                    <div class="color-swatch-wrap">
+                        <input type="color" id="c-fieldColor" value="#00ff9d">
+                        <span>Color</span>
+                    </div>
+                </div>
+                <div class="palette-row" id="field-palette"></div>
+            </div>
+
+            <!-- Velocidad rotación hue (solo activo cuando fixedColor=false) -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Velocidad rotación hue</span>
+                    <span class="ctrl-val" id="v-colorSpeed">0</span>
+                </div>
+                <input type="range" id="s-colorSpeed" min="0" max="200" step="1" value="0">
+            </div>
+
+            <!-- Saturación HSL (solo para modo rotatorio) -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Saturación</span>
+                    <span class="ctrl-val" id="v-saturation">100</span>
+                </div>
+                <input type="range" id="s-saturation" min="0" max="100" step="1" value="100">
+            </div>
+
+            <!-- Luminosidad HSL -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Luminosidad</span>
+                    <span class="ctrl-val" id="v-lightness">60</span>
+                </div>
+                <input type="range" id="s-lightness" min="10" max="95" step="1" value="60">
+            </div>
+
+            <!-- Opacidad máxima del campo ASCII normal -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Opacidad máx. campo</span>
+                    <span class="ctrl-val" id="v-fieldAlpha">0.78</span>
+                </div>
+                <input type="range" id="s-fieldAlpha" min="0.1" max="1" step="0.01" value="0.78">
+            </div>
+
+            <!-- Umbral mínimo de intensidad para dibujar -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Umbral visibilidad</span>
+                    <span class="ctrl-val" id="v-threshold">0.02</span>
+                </div>
+                <input type="range" id="s-threshold" min="0" max="0.2" step="0.001" value="0.02">
+            </div>
+
+        </div><!-- /sec-color -->
+
+        <!-- ════════ FÍSICA ════════ -->
+        <div class="section-header" data-target="sec-physics">
+            <span>Física</span><span class="arrow">▾</span>
+        </div>
+        <div class="section-body" id="sec-physics">
+
+            <!-- Radio de influencia del cursor -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Radio de influencia</span>
+                    <span class="ctrl-val" id="v-radius">165</span>
+                </div>
+                <input type="range" id="s-radius" min="20" max="1500" step="1" value="165">
+            </div>
+
+            <!-- Forma del radio: exponente Minkowski (1=rombo, 2=círculo, 8=cuadrado) -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Forma radio (Minkowski)</span>
+                    <span class="ctrl-val" id="v-minkP">2</span>
+                </div>
+                <input type="range" id="s-minkP" min="1" max="8" step="0.1" value="2">
+            </div>
+
+            <!-- Fuerza con que los chars se alejan del cursor -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Fuerza repulsión</span>
+                    <span class="ctrl-val" id="v-moveStrength">0.10</span>
+                </div>
+                <input type="range" id="s-moveStrength" min="0" max="1" step="0.005" value="0.10">
+            </div>
+
+            <!-- Exponente del perfil de influencia (borde suave vs duro) -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Perfil influencia (exp)</span>
+                    <span class="ctrl-val" id="v-influenceExp">1.75</span>
+                </div>
+                <input type="range" id="s-influenceExp" min="0.1" max="5" step="0.05" value="1.75">
+            </div>
+
+            <!-- Tiempo hasta que la actividad cae a 0 tras dejar de mover el cursor -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Tiempo inactividad (ms)</span>
+                    <span class="ctrl-val" id="v-idleTime">3800</span>
+                </div>
+                <input type="range" id="s-idleTime" min="200" max="15000" step="100" value="3800">
+            </div>
+
+            <!-- Persistencia: cuánto tarda en apagarse la intensidad -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Persistencia (cola)</span>
+                    <span class="ctrl-val" id="v-persistence">0.96</span>
+                </div>
+                <input type="range" id="s-persistence" min="0.8" max="0.999" step="0.001" value="0.96">
+            </div>
+
+            <!-- Ganancia de intensidad por frame -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Ganancia intensidad</span>
+                    <span class="ctrl-val" id="v-intensityGain">0.075</span>
+                </div>
+                <input type="range" id="s-intensityGain" min="0.005" max="0.3" step="0.005" value="0.075">
+            </div>
+
+        </div><!-- /sec-physics -->
+
+        <!-- ════════ MORPH ════════ -->
+        <div class="section-header" data-target="sec-morph">
+            <span>Morph</span><span class="arrow">▾</span>
+        </div>
+        <div class="section-body" id="sec-morph">
+
+            <!-- Umbral de morph para cambiar de char-reposo a char-activo -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Umbral morph activo</span>
+                    <span class="ctrl-val" id="v-morphThresh">0.3</span>
+                </div>
+                <input type="range" id="s-morphThresh" min="0.01" max="0.99" step="0.01" value="0.3">
+            </div>
+
+            <!-- Velocidad a la que el morph persigue su objetivo -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Velocidad morph</span>
+                    <span class="ctrl-val" id="v-morphSpeed">0.16</span>
+                </div>
+                <input type="range" id="s-morphSpeed" min="0.01" max="0.5" step="0.01" value="0.16">
+            </div>
+
+            <!-- Decaimiento de la inercia del morph -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Decaimiento morph</span>
+                    <span class="ctrl-val" id="v-morphDecay">0.91</span>
+                </div>
+                <input type="range" id="s-morphDecay" min="0.5" max="0.99" step="0.01" value="0.91">
+            </div>
+
+            <!-- Probabilidad de cambio de char objetivo en cada frame -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Prob. cambio char</span>
+                    <span class="ctrl-val" id="v-charFlip">0.008</span>
+                </div>
+                <input type="range" id="s-charFlip" min="0" max="0.05" step="0.001" value="0.008">
+            </div>
+
+        </div><!-- /sec-morph -->
+
+        <!-- ════════ RUIDO ════════ -->
+        <div class="section-header" data-target="sec-noise">
+            <span>Ruido &amp; Oscilación</span><span class="arrow">▾</span>
+        </div>
+        <div class="section-body" id="sec-noise">
+
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Amplitud ruido X</span>
+                    <span class="ctrl-val" id="v-noiseAmpX">0.4</span>
+                </div>
+                <input type="range" id="s-noiseAmpX" min="0" max="3" step="0.05" value="0.4">
+            </div>
+
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Amplitud ruido Y</span>
+                    <span class="ctrl-val" id="v-noiseAmpY">0.55</span>
+                </div>
+                <input type="range" id="s-noiseAmpY" min="0" max="3" step="0.05" value="0.55">
+            </div>
+
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Frecuencia ruido</span>
+                    <span class="ctrl-val" id="v-noiseFreq">1.8</span>
+                </div>
+                <input type="range" id="s-noiseFreq" min="0.1" max="10" step="0.1" value="1.8">
+            </div>
+
+        </div><!-- /sec-noise -->
+
+        <!-- ════════ RENDERIZADO ════════ -->
+        <div class="section-header" data-target="sec-render">
+            <span>Renderizado</span><span class="arrow">▾</span>
+        </div>
+        <div class="section-body" id="sec-render">
+
+            <!-- Estela: opacidad del borrado por frame -->
+            <div class="ctrl">
+                <div class="ctrl-head">
+                    <span class="ctrl-label">Estela (trail)</span>
+                    <span class="ctrl-val" id="v-trail">0.038</span>
+                </div>
+                <input type="range" id="s-trail" min="0.005" max="1" step="0.001" value="0.038">
+            </div>
+
+            <!-- Color de fondo -->
+            <div class="ctrl">
+                <span class="ctrl-label" style="display:block;margin-bottom:6px">Color fondo</span>
+                <div class="color-row">
+                    <div class="color-swatch-wrap">
+                        <input type="color" id="c-bgColor" value="#000000">
+                        <span>Fondo</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fondo sólido vs transparente -->
+            <div class="toggle-row">
+                <span class="toggle-label">Fondo sólido</span>
+                <label class="toggle">
+                    <input type="checkbox" id="t-solidBg" checked>
+                    <span class="toggle-track"></span>
+                </label>
+            </div>
+
+        </div><!-- /sec-render -->
+
+        <!-- ════════ ACCIONES ════════ -->
+        <div class="action-grid">
+            <button class="action-btn" onclick="resetDefaults()">↺ Reset</button>
+            <button class="action-btn" onclick="randomize()">⚄ Random</button>
+            <button class="action-btn accent" onclick="exportFullHTML()">⬇ Descargar HTML</button>
+            <button class="action-btn" onclick="exportJS()">⬇ JS</button>
+            <button class="action-btn" onclick="exportCSS()">⬇ CSS</button>
+        </div>
+
+    </div><!-- /panel-content -->
+</div><!-- /ui-panel -->
+
+<div id="hint">MUEVE EL CURSOR</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   DARKFLOWII — EDITOR COMPLETO
+   Motor original preservado al 100%. Todos los parámetros expuestos.
+   ═══════════════════════════════════════════════════════════════════ */
+
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d', { alpha: true });
+
+/* ─── CONFIGURACIÓN MAESTRA ──────────────────────────────────────────
+   Valores por defecto = comportamiento idéntico al original.          */
+const C = {
+    /* TIPOGRAFÍA */
+    fontSize:       14,
+    activeChars:    '.-:=+*#%@xX0123456789',
+    restChar:       '.',
+    showRest:       true,
+
+    /* PALABRAS SECRETAS */
+    wordsEnabled:   true,
+    wordList:       ['VOID','ENCRYPTED','GHOST','SHADOW','CIPHER','NULL'],
+    wordProb:       0.35,       // probabilidad de aparición por ciclo (1 - 0.65 del original)
+    wordInterval:   2400,       // ms entre intentos
+    wordLife:       5000,       // ms que permanece visible
+    wordMorphInit:  1.0,        // morph inicial al crear una celda-palabra
+    wordAlpha:      0.93,       // opacidad máxima de las palabras
+    wordMorphMin:   0.5,        // morph mínimo para mantener el char de palabra
+    wordColor:      '#ff2d55',  // color de las palabras secretas
+
+    /* COLOR CAMPO */
+    fixedColor:     true,       // true = color fijo, false = rotación HSL
+    fieldColor:     '#00ff9d',  // color fijo del campo ASCII
+    colorSpeed:     0,          // velocidad rotación hue (solo si !fixedColor)
+    saturation:     100,        // % saturación HSL (solo si !fixedColor)
+    lightness:      60,         // % luminosidad HSL (solo si !fixedColor)
+    fieldAlpha:     0.78,       // opacidad máxima del campo
+    threshold:      0.02,       // intensidad mínima para dibujar
+
+    /* FÍSICA */
+    radius:         165,
+    minkP:          2,          // forma del radio: 1=rombo, 2=círculo, 8=cuadrado
+    moveStrength:   0.10,
+    influenceExp:   1.75,
+    idleTime:       3800,
+    persistence:    0.96,
+    intensityGain:  0.075,
+
+    /* MORPH */
+    morphThresh:    0.3,
+    morphSpeed:     0.16,
+    morphDecay:     0.91,
+    charFlip:       0.008,
+
+    /* RUIDO */
+    noiseAmpX:      0.4,
+    noiseAmpY:      0.55,
+    noiseFreq:      1.8,
+
+    /* RENDERIZADO */
+    trail:          0.038,
+    solidBg:        true,
+    bgColor:        '#000000',
+};
+
+const DEFAULTS = JSON.parse(JSON.stringify(C)); // snapshot para reset
+
+/* ─── PRESETS DE CHARSET ──────────────────────────────────────────── */
+const CHARSET_ACTIVE = {
+    ascii:    '.-:=+*#%@xX0123456789',
+    numeric:  '0123456789',
+    katakana: 'ｦｧｨｩｪｫｬｭｮｯｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ',
+    braille:  '⠁⠂⠃⠄⠅⠆⠇⠈⠉⠊⠋⠌⠍⠎⠏⠐⠑⠒⠓⠔⠕⠖⠗⠘⠙⠚⠛⠜⠝⠞⠿',
+    greek:    'ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩαβγδεζηθικλμνξοπρστυφχψω',
+    block:    '█▓▒░▄▀■□▪▫▬▭▮▯',
+    math:     '∑∫∂∇∆∏∐∀∃∄∈∉∋∌∩∪⊂⊃⊄⊅⊆⊇±×÷√∞≈≠≡≤≥',
+};
+const CHARSET_REST = { dot: '.', asterisk: '*', dash: '–' };
+
+/* ─── PALETAS ─────────────────────────────────────────────────────── */
+const FIELD_PALETTES  = ['#00ff9d','#64ffda','#00cfff','#ae0cb0','#e040fb','#ff6aff','#ffffff','#ffeb3b'];
+const WORD_PALETTES   = ['#ff2d55','#ff6b35','#ffeb3b','#00ff9d','#00cfff','#e040fb','#ffffff','#ff0055'];
+
+/* ─── CACHÉ ───────────────────────────────────────────────────────── */
+let cachedActiveArr = [];
+let cachedRestPick  = '.';
+let cachedBgR = 0, cachedBgG = 0, cachedBgB = 0;
+let cachedFieldR = 0, cachedFieldG = 157, cachedFieldB = 157;
+let cachedWordR  = 255, cachedWordG = 45,  cachedWordB  = 85;
+
+function hexToRgb(hex) {
+    return {
+        r: parseInt(hex.slice(1,3), 16),
+        g: parseInt(hex.slice(3,5), 16),
+        b: parseInt(hex.slice(5,7), 16),
+    };
+}
+
+function refreshCache() {
+    cachedActiveArr = C.activeChars.split('').filter(Boolean);
+    if (!cachedActiveArr.length) cachedActiveArr = ['.'];
+    cachedRestPick  = (C.restChar.split('').filter(Boolean)[0]) || '.';
+    const bg  = hexToRgb(C.bgColor);
+    cachedBgR = bg.r; cachedBgG = bg.g; cachedBgB = bg.b;
+    const fc  = hexToRgb(C.fieldColor);
+    cachedFieldR = fc.r; cachedFieldG = fc.g; cachedFieldB = fc.b;
+    const wc  = hexToRgb(C.wordColor);
+    cachedWordR = wc.r; cachedWordG = wc.g; cachedWordB = wc.b;
+}
+
+/* ─── GRID ────────────────────────────────────────────────────────── */
+let width, height, cols, rows, grid = [];
+
+function initGrid() {
+    grid = [];
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            grid.push({
+                baseX:      x * C.fontSize,
+                baseY:      y * C.fontSize + C.fontSize * 0.85,
+                offsetX:    0,
+                offsetY:    0,
+                targetChar: cachedActiveArr[Math.floor(Math.random() * cachedActiveArr.length)] || '.',
+                isWord:     false,
+                birthTime:  0,
+                intensity:  0,
+                morph:      0,
+                noise:      Math.random() * 100,
+            });
+        }
+    }
+}
+
+refreshCache();
+
+function resize() {
+    width  = canvas.width  = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+    cols   = Math.floor(width  / C.fontSize) + 2;
+    rows   = Math.floor(height / C.fontSize) + 2;
+    initGrid();
+}
+window.addEventListener('resize', resize);
+resize();
+
+/* ─── CURSOR ──────────────────────────────────────────────────────── */
+const mouse = { x: -2000, y: -2000, prevX: -2000, prevY: -2000 };
+let lastMoveTime = 0;
+
+window.addEventListener('mousemove', e => {
+    if (Math.hypot(e.clientX - mouse.prevX, e.clientY - mouse.prevY) > 0.5)
+        lastMoveTime = Date.now();
+    mouse.prevX = mouse.x; mouse.prevY = mouse.y;
+    mouse.x = e.clientX; mouse.y = e.clientY;
+});
+
+/* ─── SISTEMA DE PALABRAS SECRETAS ───────────────────────────────────
+   Elige una palabra aleatoria, la coloca en una fila aleatoria
+   de la cuadrícula y fuerza el morph de esas celdas a 1.           */
+let wordTimer = null;
+
+function createRandomWord() {
+    if (!C.wordsEnabled || C.wordList.length === 0) return;
+    if (Math.random() > C.wordProb) return;
+
+    const word   = C.wordList[Math.floor(Math.random() * C.wordList.length)];
+    const startX = Math.floor(Math.random() * Math.max(1, cols - word.length - 4));
+    const startY = Math.floor(Math.random() * Math.max(1, rows - 4));
+    const now    = Date.now();
+
+    for (let i = 0; i < word.length; i++) {
+        const idx = (startY + 1) * cols + (startX + i);
+        if (grid[idx]) {
+            grid[idx].targetChar = word[i];
+            grid[idx].isWord     = true;
+            grid[idx].birthTime  = now;
+            grid[idx].morph      = C.wordMorphInit;
+        }
+    }
+}
+
+function startWordTimer() {
+    if (wordTimer) clearInterval(wordTimer);
+    wordTimer = setInterval(createRandomWord, C.wordInterval);
+}
+startWordTimer();
+
+/* ─── BUCLE PRINCIPAL ─────────────────────────────────────────────── */
+function animate() {
+    /* Estela: rect semitransparente que borra el frame anterior */
+    if (C.solidBg) {
+        ctx.fillStyle = `rgba(${cachedBgR},${cachedBgG},${cachedBgB},${C.trail})`;
+    } else {
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = `rgba(0,0,0,${C.trail})`;
+    }
+    ctx.fillRect(0, 0, width, height);
+
+    const time     = Date.now() * 0.001;
+    const activity = Math.max(0, 1 - (Date.now() - lastMoveTime) / C.idleTime);
+    const now      = Date.now();
+
+    /* Cache local de frame */
+    const minkP    = C.minkP;
+    const useHypot = minkP === 2;
+
+    ctx.font = `${C.fontSize}px monospace`;
+
+    for (const p of grid) {
+
+        /* Expirar palabras cuando superan su tiempo de vida */
+        if (p.isWord && (now - p.birthTime > C.wordLife)) {
+            p.isWord    = false;
+            p.targetChar = cachedActiveArr[Math.floor(Math.random() * cachedActiveArr.length)] || '.';
+            p.morph     = 0.3;
+        }
+
+        /* Distancia al cursor con métrica Minkowski */
+        const dx   = p.baseX - mouse.x;
+        const dy   = p.baseY - mouse.y;
+        const dist = useHypot
+            ? (Math.hypot(dx, dy) || 1)
+            : (Math.pow(Math.pow(Math.abs(dx), minkP) + Math.pow(Math.abs(dy), minkP), 1 / minkP) || 1);
+
+        /* Perfil de influencia */
+        const rawInf   = Math.max(0, (C.radius - dist) / C.radius);
+        const influence = Math.pow(rawInf, C.influenceExp);
+
+        /* Morph */
+        p.morph = p.morph * C.morphDecay + influence * activity * C.morphSpeed;
+
+        /* Desplazamiento con ruido */
+        const noise  = Math.sin(time * C.noiseFreq + p.noise) * influence;
+        p.offsetX = dx * influence * C.moveStrength + noise * C.noiseAmpX;
+        p.offsetY = dy * influence * C.moveStrength + noise * C.noiseAmpY;
+
+        /* Intensidad */
+        p.intensity = Math.max(0, p.intensity * C.persistence + influence * C.intensityGain * activity);
+
+        /* Skip si no hay nada que dibujar */
+        if (p.intensity <= C.threshold) {
+            if (!p.isWord && Math.random() < C.charFlip)
+                p.targetChar = cachedActiveArr[Math.floor(Math.random() * cachedActiveArr.length)] || '.';
+            continue;
+        }
+
+        /* Carácter actual — si showRest=false siempre usa targetChar */
+        const morphMin    = p.isWord ? C.wordMorphMin : C.morphThresh;
+        const currentChar = (C.showRest && p.morph <= morphMin) ? cachedRestPick : p.targetChar;
+
+        /* Color y alpha según si es palabra o campo normal */
+        let alpha;
+        if (p.isWord) {
+            alpha = p.intensity * C.wordAlpha * Math.max(p.morph, C.wordMorphMin);
+            if (C.fixedColor) {
+                ctx.fillStyle = `rgba(${cachedWordR},${cachedWordG},${cachedWordB},1)`;
+            } else {
+                ctx.fillStyle = C.wordColor; // las palabras siempre usan su color propio
+            }
+        } else {
+            alpha = p.intensity * C.fieldAlpha * Math.max(p.morph, 0.4);
+            if (C.fixedColor) {
+                ctx.fillStyle = `rgba(${cachedFieldR},${cachedFieldG},${cachedFieldB},1)`;
+            } else {
+                const hue = (time * C.colorSpeed) % 360;
+                ctx.fillStyle = `hsl(${hue},${C.saturation}%,${C.lightness}%)`;
+            }
+        }
+
+        ctx.globalAlpha = Math.min(alpha, 1);
+        ctx.fillText(currentChar, p.baseX + p.offsetX, p.baseY + p.offsetY);
+
+        if (!p.isWord && Math.random() < C.charFlip)
+            p.targetChar = cachedActiveArr[Math.floor(Math.random() * cachedActiveArr.length)] || '.';
+    }
+
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(animate);
+}
+
+animate();
+
+/* ═══════════════════════════════════════════════════════════════════
+   PANEL DE CONTROL
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ─── Sliders ─────────────────────────────────────────────────────── */
+const SLIDER_MAP = [
+    'fontSize','radius','minkP','moveStrength','influenceExp','idleTime',
+    'persistence','intensityGain','morphThresh','morphSpeed','morphDecay',
+    'charFlip','noiseAmpX','noiseAmpY','noiseFreq','trail',
+    'colorSpeed','saturation','lightness','fieldAlpha','threshold',
+    'wordProb','wordInterval','wordLife','wordMorphInit','wordAlpha','wordMorphMin',
+];
+
+SLIDER_MAP.forEach(key => {
+    const el = document.getElementById(`s-${key}`);
+    const vl = document.getElementById(`v-${key}`);
+    if (!el) return;
+    el.addEventListener('input', () => {
+        C[key] = parseFloat(el.value);
+        if (vl) vl.textContent = el.value;
+        if (key === 'fontSize') resize();
+        if (key === 'wordInterval') startWordTimer();
+    });
+});
+
+/* ─── Toggles ─────────────────────────────────────────────────────── */
+document.getElementById('t-wordsEnabled').addEventListener('change', e => { C.wordsEnabled = e.target.checked; });
+document.getElementById('t-fixedColor').addEventListener('change',   e => { C.fixedColor   = e.target.checked; });
+document.getElementById('t-solidBg').addEventListener('change',      e => { C.solidBg      = e.target.checked; updateBgPickerState(); });
+document.getElementById('t-showRest').addEventListener('change',     e => { C.showRest     = e.target.checked; });
+
+/* ─── Color pickers ───────────────────────────────────────────────── */
+document.getElementById('c-wordColor').addEventListener('input', e => {
+    C.wordColor = e.target.value; refreshCache();
+});
+document.getElementById('c-fieldColor').addEventListener('input', e => {
+    C.fieldColor = e.target.value; refreshCache();
+});
+document.getElementById('c-bgColor').addEventListener('input', e => {
+    C.bgColor = e.target.value; refreshCache();
+});
+
+/* ─── Textarea palabras ───────────────────────────────────────────── */
+document.getElementById('words-textarea').addEventListener('input', e => {
+    C.wordList = e.target.value.split('\n').map(s => s.trim().toUpperCase()).filter(Boolean);
+});
+
+/* ─── Charsets ────────────────────────────────────────────────────── */
+document.querySelectorAll('.preset-btn[data-target]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const setKey = btn.dataset.set;
+        const target = btn.dataset.target;
+        btn.closest('.preset-grid').querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        if (target === 'active') {
+            if (setKey === 'custom_a') return;
+            C.activeChars = CHARSET_ACTIVE[setKey] || C.activeChars;
+            document.getElementById('custom-active').value = C.activeChars;
+        } else {
+            if (setKey === 'custom_r') return;
+            C.restChar = CHARSET_REST[setKey] || C.restChar;
+            document.getElementById('custom-rest').value = C.restChar;
+        }
+        refreshCache();
+        /* Actualizar targetChar de todas las celdas no-palabra */
+        grid.forEach(p => {
+            if (!p.isWord)
+                p.targetChar = cachedActiveArr[Math.floor(Math.random() * cachedActiveArr.length)] || '.';
+        });
+    });
+});
+
+document.getElementById('custom-active').addEventListener('input', e => {
+    C.activeChars = e.target.value || '.'; refreshCache();
+    grid.forEach(p => {
+        if (!p.isWord)
+            p.targetChar = cachedActiveArr[Math.floor(Math.random() * cachedActiveArr.length)] || '.';
+    });
+});
+document.getElementById('custom-rest').addEventListener('input', e => {
+    C.restChar = e.target.value || '.'; refreshCache();
+});
+
+/* ─── Paletas de color ────────────────────────────────────────────── */
+function buildPalette(containerId, colors, onPick) {
+    const container = document.getElementById(containerId);
+    colors.forEach((hex, i) => {
+        const sw = document.createElement('div');
+        sw.className = 'swatch' + (i === 0 ? ' active' : '');
+        sw.style.background = hex;
+        sw.title = hex;
+        sw.addEventListener('click', () => {
+            container.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+            sw.classList.add('active');
+            onPick(hex);
+        });
+        container.appendChild(sw);
+    });
+}
+
+buildPalette('field-palette', FIELD_PALETTES, hex => {
+    C.fieldColor = hex;
+    document.getElementById('c-fieldColor').value = hex;
+    refreshCache();
+});
+
+buildPalette('word-palette', WORD_PALETTES, hex => {
+    C.wordColor = hex;
+    document.getElementById('c-wordColor').value = hex;
+    refreshCache();
+});
+
+/* ─── Secciones colapsables ───────────────────────────────────────── */
+document.querySelectorAll('.section-header').forEach(header => {
+    header.addEventListener('click', () => {
+        const body = document.getElementById(header.dataset.target);
+        const open = !body.classList.contains('collapsed');
+        body.classList.toggle('collapsed', open);
+        header.classList.toggle('collapsed', open);
+    });
+});
+
+/* ─── Colapsar panel ──────────────────────────────────────────────── */
+let panelOpen = true;
+document.getElementById('toggle-panel').addEventListener('click', () => {
+    panelOpen = !panelOpen;
+    document.getElementById('panel-content').style.display = panelOpen ? '' : 'none';
+    document.getElementById('toggle-panel').textContent = panelOpen ? '−' : '+';
+});
+
+/* ─── Sync slider helper ──────────────────────────────────────────── */
+function syncSlider(key, value) {
+    const el = document.getElementById(`s-${key}`);
+    const vl = document.getElementById(`v-${key}`);
+    if (el) el.value = value;
+    if (vl) vl.textContent = typeof value === 'number' ? value : value;
+}
+
+/* ─── BgColor picker: deshabilitado cuando solidBg=false ─────────── */
+function updateBgPickerState() {
+    const picker  = document.getElementById('c-bgColor');
+    const wrapper = picker.closest('.ctrl');
+    const disabled = !C.solidBg;
+    picker.disabled = disabled;
+    picker.style.opacity = disabled ? '0.3' : '1';
+    picker.style.cursor  = disabled ? 'not-allowed' : 'pointer';
+    if (wrapper) wrapper.style.opacity = disabled ? '0.4' : '1';
+}
+updateBgPickerState();
+
+/* ─── Reset ───────────────────────────────────────────────────────── */
+function resetDefaults() {
+    Object.assign(C, JSON.parse(JSON.stringify(DEFAULTS)));
+    SLIDER_MAP.forEach(k => syncSlider(k, C[k]));
+    document.getElementById('t-wordsEnabled').checked = C.wordsEnabled;
+    document.getElementById('t-fixedColor').checked   = C.fixedColor;
+    document.getElementById('t-solidBg').checked      = C.solidBg;
+    document.getElementById('t-showRest').checked     = C.showRest;
+    document.getElementById('c-wordColor').value      = C.wordColor;
+    document.getElementById('c-fieldColor').value     = C.fieldColor;
+    document.getElementById('c-bgColor').value        = C.bgColor;
+    document.getElementById('words-textarea').value   = C.wordList.join('\n');
+    refreshCache();
+    updateBgPickerState();
+    startWordTimer();
+    resize();
+}
+
+/* ─── Randomize ───────────────────────────────────────────────────── */
+function randomize() {
+    /* Física */
+    C.radius       = 60 + Math.random() * 500;
+    C.minkP        = 1 + Math.random() * 7;
+    C.moveStrength = Math.random() * 0.5;
+    C.influenceExp = 0.5 + Math.random() * 4;
+    C.persistence  = 0.85 + Math.random() * 0.14;
+    C.intensityGain= 0.01 + Math.random() * 0.15;
+    C.idleTime     = 1000 + Math.random() * 8000;
+
+    /* Ruido */
+    C.noiseAmpX    = Math.random() * 2.5;
+    C.noiseAmpY    = Math.random() * 2.5;
+    C.noiseFreq    = 0.3 + Math.random() * 9;
+
+    /* Renderizado */
+    C.trail        = 0.008 + Math.random() * 0.18;
+    C.morphDecay   = 0.7 + Math.random() * 0.29;
+    C.morphSpeed   = 0.05 + Math.random() * 0.35;
+    C.morphThresh  = 0.1 + Math.random() * 0.7;
+    C.charFlip     = Math.random() * 0.04;
+
+    /* Palabras */
+    C.wordInterval = 500 + Math.floor(Math.random() * 5000);
+    C.wordLife     = 2000 + Math.floor(Math.random() * 8000);
+    C.wordProb     = 0.1 + Math.random() * 0.8;
+
+    /* Color campo y palabras aleatorios */
+    const rndHex   = () => '#' + Math.floor(Math.random()*0xffffff).toString(16).padStart(6,'0');
+    C.fieldColor   = rndHex();
+    C.wordColor    = rndHex();
+    /* 50% fijo, 50% rotatorio */
+    C.fixedColor   = Math.random() < 0.5;
+    if (!C.fixedColor) {
+        C.colorSpeed = Math.random() * 120;
+        C.saturation = 40 + Math.random() * 60;
+        C.lightness  = 40 + Math.random() * 40;
+    }
+    document.getElementById('t-fixedColor').checked  = C.fixedColor;
+
+    /* Charset activo aleatorio */
+    const charsetKeys = Object.keys(CHARSET_ACTIVE).filter(k => k !== 'custom_a');
+    const pickedKey   = charsetKeys[Math.floor(Math.random() * charsetKeys.length)];
+    C.activeChars     = CHARSET_ACTIVE[pickedKey];
+    document.getElementById('custom-active').value = C.activeChars;
+    document.querySelectorAll('#charset-active-presets .preset-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.set === pickedKey);
+    });
+
+    /* Charset reposo aleatorio */
+    const restKeys   = Object.keys(CHARSET_REST).filter(k => k !== 'custom_r');
+    const pickedRest = restKeys[Math.floor(Math.random() * restKeys.length)];
+    C.restChar       = CHARSET_REST[pickedRest];
+    document.getElementById('custom-rest').value = C.restChar;
+    document.querySelectorAll('#charset-rest-presets .preset-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.set === pickedRest);
+    });
+
+    refreshCache();
+    SLIDER_MAP.forEach(k => syncSlider(k, C[k]));
+    document.getElementById('c-fieldColor').value = C.fieldColor;
+    document.getElementById('c-wordColor').value  = C.wordColor;
+    startWordTimer();
+}
+
+/* ─── Hint ────────────────────────────────────────────────────────── */
+window.addEventListener('mousemove', () => {
+    document.getElementById('hint').style.opacity = '0';
+}, { once: true });
+
+/* ═══════════════════════════════════════════════════════════════════
+   EXPORTACIÓN
+   ═══════════════════════════════════════════════════════════════════ */
+
+function buildExportJS() {
+    return `/* Darkflowii — exportado desde el editor */
+const canvas = document.getElementById('darkflowii-canvas');
+const ctx    = canvas.getContext('2d', { alpha: true });
+
+/* ── Parámetros horneados ── */
+const fontSize      = ${C.fontSize};
+const activeChars   = ${JSON.stringify(C.activeChars)};
+const restChar      = ${JSON.stringify(C.restChar)};
+const wordsEnabled  = ${C.wordsEnabled};
+const wordList      = ${JSON.stringify(C.wordList)};
+const wordProb      = ${C.wordProb};
+const wordInterval  = ${C.wordInterval};
+const wordLife      = ${C.wordLife};
+const wordMorphInit = ${C.wordMorphInit};
+const wordAlpha     = ${C.wordAlpha};
+const wordMorphMin  = ${C.wordMorphMin};
+const wordColor     = '${C.wordColor}';
+const fixedColor    = ${C.fixedColor};
+const fieldColor    = '${C.fieldColor}';
+const colorSpeed    = ${C.colorSpeed};
+const saturation    = ${C.saturation};
+const lightness     = ${C.lightness};
+const fieldAlpha    = ${C.fieldAlpha};
+const threshold     = ${C.threshold};
+const radius        = ${C.radius};
+const minkP         = ${C.minkP};
+const moveStrength  = ${C.moveStrength};
+const influenceExp  = ${C.influenceExp};
+const idleTime      = ${C.idleTime};
+const persistence   = ${C.persistence};
+const intensityGain = ${C.intensityGain};
+const morphThresh   = ${C.morphThresh};
+const morphSpeed    = ${C.morphSpeed};
+const morphDecay    = ${C.morphDecay};
+const charFlip      = ${C.charFlip};
+const noiseAmpX     = ${C.noiseAmpX};
+const noiseAmpY     = ${C.noiseAmpY};
+const noiseFreq     = ${C.noiseFreq};
+const trail         = ${C.trail};
+const solidBg       = ${C.solidBg};
+const bgColor       = '${C.bgColor}';
+
+/* ── Caché estática ── */
+function hexToRgb(h){return{r:parseInt(h.slice(1,3),16),g:parseInt(h.slice(3,5),16),b:parseInt(h.slice(5,7),16)};}
+const bg = hexToRgb(bgColor), fc = hexToRgb(fieldColor), wc = hexToRgb(wordColor);
+const activeArr = activeChars.split('').filter(Boolean);
+const restPick  = (restChar.split('').filter(Boolean)[0]) || '.';
+const useHypot  = minkP === 2;
+
+let width, height, cols, rows, grid = [];
+
+function initGrid() {
+    grid = [];
+    for (let y = 0; y < rows; y++)
+        for (let x = 0; x < cols; x++)
+            grid.push({
+                baseX: x*fontSize, baseY: y*fontSize+fontSize*0.85,
+                offsetX:0, offsetY:0,
+                targetChar: activeArr[Math.floor(Math.random()*activeArr.length)]||'.',
+                isWord:false, birthTime:0, intensity:0, morph:0, noise:Math.random()*100,
+            });
+}
+
+function resize() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+    cols = Math.floor(width/fontSize)+2;
+    rows = Math.floor(height/fontSize)+2;
+    initGrid();
+}
+window.addEventListener('resize', resize);
+resize();
+
+const mouse = {x:-2000,y:-2000,prevX:-2000,prevY:-2000};
+let lastMoveTime = 0;
+window.addEventListener('mousemove', e => {
+    if(Math.hypot(e.clientX-mouse.prevX,e.clientY-mouse.prevY)>0.5) lastMoveTime=Date.now();
+    mouse.prevX=mouse.x; mouse.prevY=mouse.y;
+    mouse.x=e.clientX; mouse.y=e.clientY;
+});
+
+function createRandomWord() {
+    if(!wordsEnabled||!wordList.length) return;
+    if(Math.random()>wordProb) return;
+    const word=wordList[Math.floor(Math.random()*wordList.length)];
+    const sx=Math.floor(Math.random()*Math.max(1,cols-word.length-4));
+    const sy=Math.floor(Math.random()*Math.max(1,rows-4));
+    const now=Date.now();
+    for(let i=0;i<word.length;i++){
+        const idx=(sy+1)*cols+(sx+i);
+        if(grid[idx]){grid[idx].targetChar=word[i];grid[idx].isWord=true;grid[idx].birthTime=now;grid[idx].morph=wordMorphInit;}
+    }
+}
+setInterval(createRandomWord, wordInterval);
+
+function animate() {
+    if(solidBg) ctx.fillStyle=\`rgba(\${bg.r},\${bg.g},\${bg.b},\${trail})\`;
+    else { ctx.clearRect(0,0,width,height); ctx.fillStyle=\`rgba(0,0,0,\${trail})\`; }
+    ctx.fillRect(0,0,width,height);
+
+    const time=Date.now()*0.001;
+    const activity=Math.max(0,1-(Date.now()-lastMoveTime)/idleTime);
+    ctx.font=\`\${fontSize}px monospace\`;
+
+    for(const p of grid){
+        if(p.isWord&&(Date.now()-p.birthTime>wordLife)){
+            p.isWord=false;
+            p.targetChar=activeArr[Math.floor(Math.random()*activeArr.length)]||'.';
+            p.morph=0.3;
+        }
+        const dx=p.baseX-mouse.x, dy=p.baseY-mouse.y;
+        const dist=useHypot?(Math.hypot(dx,dy)||1):(Math.pow(Math.pow(Math.abs(dx),minkP)+Math.pow(Math.abs(dy),minkP),1/minkP)||1);
+        const influence=Math.pow(Math.max(0,(radius-dist)/radius),influenceExp);
+        p.morph=p.morph*morphDecay+influence*activity*morphSpeed;
+        const noise=Math.sin(time*noiseFreq+p.noise)*influence;
+        p.offsetX=dx*influence*moveStrength+noise*noiseAmpX;
+        p.offsetY=dy*influence*moveStrength+noise*noiseAmpY;
+        p.intensity=Math.max(0,p.intensity*persistence+influence*intensityGain*activity);
+
+        if(p.intensity<=threshold){
+            if(!p.isWord&&Math.random()<charFlip) p.targetChar=activeArr[Math.floor(Math.random()*activeArr.length)]||'.';
+            continue;
+        }
+        const mm=p.isWord?wordMorphMin:morphThresh;
+        const ch=p.morph>mm?p.targetChar:restPick;
+        let alpha;
+        if(p.isWord){
+            alpha=p.intensity*wordAlpha*Math.max(p.morph,wordMorphMin);
+            ctx.fillStyle=fixedColor?\`rgba(\${wc.r},\${wc.g},\${wc.b},1)\`:wordColor;
+        } else {
+            alpha=p.intensity*fieldAlpha*Math.max(p.morph,0.4);
+            ctx.fillStyle=fixedColor?\`rgba(\${fc.r},\${fc.g},\${fc.b},1)\`:\`hsl(\${(time*colorSpeed)%360},\${saturation}%,\${lightness}%)\`;
+        }
+        ctx.globalAlpha=Math.min(alpha,1);
+        ctx.fillText(ch,p.baseX+p.offsetX,p.baseY+p.offsetY);
+        if(!p.isWord&&Math.random()<charFlip) p.targetChar=activeArr[Math.floor(Math.random()*activeArr.length)]||'.';
+    }
+    ctx.globalAlpha=1;
+    requestAnimationFrame(animate);
+}
+animate();`;
+}
+
+function downloadFile(content, name, type) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([content], { type }));
+    a.download = name; a.click();
+}
+
+function exportFullHTML() {
+    downloadFile(`<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Darkflowii</title>
+    <style>*{margin:0;padding:0;box-sizing:border-box;}body{background:${C.bgColor};overflow:hidden;}canvas{display:block;position:fixed;top:0;left:0;}</style>
+</head>
+<body>
+    <canvas id="darkflowii-canvas"></canvas>
+</body>
+</html>`, 'darkflowii.html', 'text/html');
+}
+
+function exportJS()  { downloadFile(buildExportJS(), 'darkflowii.js', 'text/javascript'); }
+function exportCSS() {
+    downloadFile(`*{margin:0;padding:0;box-sizing:border-box;}body{background:${C.bgColor};overflow:hidden;}canvas{display:block;position:fixed;top:0;left:0;}`,
+    'darkflowii.css', 'text/css');
+}
+</script>
+</body>
+</html>
