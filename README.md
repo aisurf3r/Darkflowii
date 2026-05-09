@@ -2,6 +2,11 @@
 
 **Campo de partículas ASCII reactivo al cursor · Con palabras secretas · Standalone · Sin dependencias**
 
+<img width="1443" height="896" alt="{4D59BD5D-C94D-468C-8026-219CD30E6ABB}" src="https://github.com/user-attachments/assets/5d2f508e-c471-4739-a86d-27f37505b458" />
+
+<img width="1432" height="895" alt="{D6ACDF8F-7BCB-4B48-8D69-FCC758190E39}" src="https://github.com/user-attachments/assets/8aacb1b8-5b5c-4675-9b28-46c61a329d07" />
+
+
 ---
 
 Darkflowii nació del mismo origen que Flowii — un recurso visual dentro de un proyecto personal. Esta variante va un paso más allá: además del campo de partículas ASCII reactivo al cursor, integra un sistema de **palabras y frases secretas** que emergen del ruido de forma autónoma, con su propio color, cadencia y tiempo de vida. Todo configurable desde el editor, sin tocar una sola línea de código.
