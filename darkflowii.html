@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 16 16'><text x='0' y='14'>☄️</text></svg>" /
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Darkflowii — cursor-reactive ASCII particle field with secret words. Standalone, zero dependencies. Customize and export your own generative typography effect.">
     <title>Darkflowii Editor</title>
@@ -376,7 +377,7 @@
     <div id="panel-header">
         <h1>Darkflowii</h1>
         <div class="header-actions">
-            <a href="https://github.com/aisurf3r/Flowii" target="_blank" class="hdr-btn">GitHub</a>
+            <a href="https://github.com/aisurf3r/Darkflowii" target="_blank" class="hdr-btn">GitHub</a>
             <button id="toggle-panel" title="Colapsar">−</button>
         </div>
     </div>
@@ -809,15 +810,14 @@ NULL</textarea>
 
 <script>
 /* ═══════════════════════════════════════════════════════════════════
-   DARKFLOWII — EDITOR COMPLETO
-   Motor original preservado al 100%. Todos los parámetros expuestos.
+   DARKFLOWII
+   Todos los parámetros expuestos.
    ═══════════════════════════════════════════════════════════════════ */
 
 const canvas = document.getElementById('canvas');
 const ctx    = canvas.getContext('2d', { alpha: true });
 
-/* ─── CONFIGURACIÓN MAESTRA ──────────────────────────────────────────
-   Valores por defecto = comportamiento idéntico al original.          */
+/* ─── CONFIGURACIÓN MAESTRA ────────────────────────────────────────── */
 const C = {
     /* TIPOGRAFÍA */
     fontSize:       14,
